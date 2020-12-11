@@ -38,4 +38,5 @@ print(node_3.get_prob())
 network.mcmc({'First': 'A', 'Second': 'C', 'Conditional': 'F'}, 1000)
 
 
-def gibbs(bayes_network: BayesNetwork, evidence: dict, query:)
+def gibbs(bayes_network: BayesNetwork, evidence: dict, query):
+    pass
