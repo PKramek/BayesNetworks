@@ -26,12 +26,16 @@ network.add_states([node_1, node_2, node_3])
 network.add_edge(node_1, node_3)
 network.add_edge(node_2, node_3)
 network.preprocess()
-node_1.set_evidence('A')
-node_2.set_evidence('C')
-for i in range(10000):
+
+for i in range(1000):
     evidence = [node_1.sample(), node_2.sample()]
     node_3.sample(evidence)
 
-print(node_1.counter)
-print(node_2.counter)
-print(node_3.counter)
+print(node_1.get_prob())
+print(node_2.get_prob())
+print(node_3.get_prob())
+
+network.mcmc({'First': 'A', 'Second': 'C', 'Conditional': 'F'}, 1000)
+
+
+def gibbs(bayes_network: BayesNetwork, evidence: dict, query:)

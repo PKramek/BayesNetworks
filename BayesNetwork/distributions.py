@@ -80,12 +80,11 @@ class ConditionalDistribution(Distribution):
             assert sum(weights) == 1
             return values, weights
 
-        self._values = list(set(self.distribution[:][-2]))
+        self._values = list(set([x[-2] for x in self.distribution]))
         possible_evidences = list(set([tuple(x[:self.num_of_dependencies]) for x in self.distribution]))
         for possible_evidence in possible_evidences:
             self.conditional_distribution_lookup[possible_evidence] = get_possible_values_and_weight_for_evidence(
                 self.distribution, possible_evidence)
-        print(possible_evidences)
 
         self._is_preprocessed = True
 

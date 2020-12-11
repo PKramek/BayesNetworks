@@ -71,13 +71,22 @@ class Node:
     def set_random(self):
         self.evidence = None
 
+    def get_prob(self):
+        if self.counter:
+            total_occurences = sum(self.counter.values())
+            return {key: value / float(total_occurences) for key, value in self.counter.items()}
+        else:
+            return None
+
+    def is_value_possible(self, value):
+        return self.distribution.is_value_possible(value)
+
 
 class BayesNetwork:
     def __init__(self):
         self.states = {}
-        self.edges = []
 
-    def add_states(self, list_of_states: List[Node]):
+    def add_states(self, list_of_states: List['Node']):
         assert isinstance(list_of_states, List) and all(isinstance(x, Node) for x in list_of_states)
         for state in list_of_states:
             if state.name not in self.states.keys():
@@ -85,7 +94,7 @@ class BayesNetwork:
             else:
                 raise ValueError('States names must be unique')
 
-    def add_edge(self, parent: Node, child: Node):
+    def add_edge(self, parent: 'Node', child: 'Node'):
         assert isinstance(parent, Node) and isinstance(child, Node)
 
         if parent.name not in self.states.keys():
@@ -103,5 +112,13 @@ class BayesNetwork:
         for node in self.states.values():
             node.preprocess()
 
-    def mcmc(self, num_of_repetitions: int):
-        pass
+    def _check_evidences(self, evidence: Dict):
+        for name, state in evidence.items():
+            if not self.states[name].is_value_possible(state):
+                raise ValueError('Given evidence: {} for node: {} not possible'.format(state, name))
+
+    def mcmc(self, evidence, num_of_repetitions: int):
+        # TODO finish this method
+        assert isinstance(evidence, dict), 'Evidence must be a dictionary'
+        assert self.states
+        self._check_evidences(evidence)
