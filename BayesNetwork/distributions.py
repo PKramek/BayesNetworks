@@ -1,8 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Tuple
+from random import choice as random_choice
+from typing import List, Dict, Tuple, Generator, Set
 
 import numpy as np
 
+
+# TODO refactor this file
 
 class Distribution(ABC):
 
@@ -16,6 +19,10 @@ class Distribution(ABC):
 
     @abstractmethod
     def is_value_possible(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def get_random_value(self, *args, **kwargs):
         pass
 
 
@@ -48,6 +55,10 @@ class DiscreteDistribution(Distribution):
 
     def is_value_possible(self, value):
         return value in self._values
+
+    def get_random_value(self):
+        assert self._values, 'To get random value, distribution first must be preprocessed'
+        return random_choice(self._values)
 
 
 class ConditionalDistribution(Distribution):
@@ -101,3 +112,14 @@ class ConditionalDistribution(Distribution):
 
     def is_value_possible(self, value):
         return value in self._values
+
+    def get_random_value(self):
+        assert self._values, 'To get random value, distribution first must be preprocessed'
+        return random_choice(self._values)
+
+    def get_dependencies_possible_values(self) -> Generator[Set[str], None, None]:
+        for i in range(self.num_of_dependencies - 2):
+            ith_column = [x[i] for x in self.distribution]
+            possible_values = set(ith_column)
+
+            yield possible_values

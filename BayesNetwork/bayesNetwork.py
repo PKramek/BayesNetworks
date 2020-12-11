@@ -1,3 +1,4 @@
+from random import choice as random_choice
 from typing import List, Dict
 
 from BayesNetwork.distributions import Distribution, ConditionalDistribution
@@ -9,34 +10,43 @@ class Node:
         assert isinstance(distribution, Distribution), 'Distribution must be of class Distribution'
         self.children = {}
         self.parents = {}
-        self.markov_neighborhood = {}
+        # Used in conditional probability
+        self.parents_order = []
+
+        self.markov_blanket = {}
         self.distribution = distribution
         self.name = name  # critical !!
 
         self.is_dependent = isinstance(distribution, ConditionalDistribution)
         self.counter = {}
         self.evidence = None
+        self.static_value = None
 
     def add_parent(self, parent):
         assert isinstance(parent, Node), 'Given parent is not a Node'
+        assert parent is not self, 'Cant add self as a parent'
+        assert isinstance(self.distribution, ConditionalDistribution), 'Cant add parents to independent distribution'
+
         if parent.name in self.children.keys():
-            raise ValueError('Can not add parent, because not is already a child')
+            raise ValueError('Can`t add parent, because not is already a child')
         if parent.name not in self.parents.keys():
             self.parents[parent.name] = parent
-            self.markov_neighborhood[parent.name] = parent
+            self.parents_order.append(parent.name)
+            self.markov_blanket[parent.name] = parent
         else:
             raise ValueError('Parent already know')
 
     def add_child(self, child):
         assert isinstance(child, Node)
+        assert child is not self, 'Cant add self as a child'
         if child.name in self.parents.keys():
             raise ValueError('Can not add child, because not is already a parent')
         if child.name not in self.children.keys():
             self.children[child.name] = child
-            self.markov_neighborhood[child.name] = child
+            self.markov_blanket[child.name] = child
 
-    def get_markov_neighborhood(self) -> Dict:
-        return self.markov_neighborhood
+    def get_markov_blanket(self) -> Dict:
+        return self.markov_blanket
 
     def get_children(self) -> Dict:
         return self.children
@@ -45,36 +55,66 @@ class Node:
         return self.parents
 
     def preprocess(self):
+        # Adding parents children to markov blanket (excluding node itself)
+        for child in self.children.values():
+            for name, node in child.get_parents().items():
+                if name != self.name:
+                    self.markov_blanket[name] = node
+
         self.distribution.preprocess()
+
+        if isinstance(self.distribution, ConditionalDistribution):
+            for possible_values in self.distribution.get_dependencies_possible_values():
+                for i, value in enumerate(possible_values):
+                    if not self.parents[self.parents_order[i]].is_value_possible():
+                        raise RuntimeError('Parents for node: {} are out of order with given distribution'.format(
+                            self.name
+                        ))
 
     def reset_counters(self):
         self.counter = {}
 
-    def sample(self, evidence=None):
-        if self.evidence is None:
+    def sample(self, observations=None):
+        if self.evidence is None and self.static_value is None:
             if self.is_dependent:
-                assert evidence is not None, 'Evidence must be given if node is dependent'
-                sample = self.distribution.sample(evidence)
+                assert observations is not None, 'Observations must be given if node is dependent'
+                sample = self.distribution.sample(observations)
             else:
                 sample = self.distribution.sample()
             self.counter.setdefault(sample, 0)
             self.counter[sample] += 1
-        else:
+        elif self.evidence is not None:
             sample = self.evidence
+        else:
+            sample = self.static_value
 
         return sample
+
+    def sample_given_markov_blanket(self, markov_blanket: dict):
+        observations = []
+        for name in self.parents_order:
+            observations.append(markov_blanket[name].sample())
+
+        return self.sample(observations)
 
     def set_evidence(self, value):
         assert self.distribution.is_value_possible(value), 'Value not found in distribution'
         self.evidence = value
 
-    def set_random(self):
-        self.evidence = None
+    def set_static_value(self, value):
+        assert self.distribution.is_value_possible(value), 'Value not found in distribution'
+        self.static_value = value
+
+    def set_initial_value(self):
+        self.static_value = self.distribution.get_random_value()
+
+    def set_non_static(self):
+        self.static_value = None
 
     def get_prob(self):
         if self.counter:
-            total_occurences = sum(self.counter.values())
-            return {key: value / float(total_occurences) for key, value in self.counter.items()}
+            total_occurrences = sum(self.counter.values())
+            return {key: value / float(total_occurrences) for key, value in self.counter.items()}
         else:
             return None
 
@@ -112,13 +152,52 @@ class BayesNetwork:
         for node in self.states.values():
             node.preprocess()
 
-    def _check_evidences(self, evidence: Dict):
+    def _set_evidences(self, evidence: Dict):
         for name, state in evidence.items():
-            if not self.states[name].is_value_possible(state):
-                raise ValueError('Given evidence: {} for node: {} not possible'.format(state, name))
+            self.states[name].set_evidence(state)
 
-    def mcmc(self, evidence, num_of_repetitions: int):
-        # TODO finish this method
-        assert isinstance(evidence, dict), 'Evidence must be a dictionary'
+    def _check_query(self, query):
+        for node in query:
+            assert node in self.states.values(), 'Node {} not known'.format(node.name)
+
+    def _reset_counters(self):
         assert self.states
-        self._check_evidences(evidence)
+        for state in self.states.values():
+            state.reset_counters()
+
+    def _get_states_without_evidence(self, evidence: dict):
+        states_without_evidence = []
+        for state in self.states.values():
+            if state.name not in evidence.keys():
+                states_without_evidence.append(state)
+
+        return states_without_evidence
+
+    def gibbs(self, evidence: dict, query: List[Node], n: int):
+        assert self.states, 'No nodes added to network'
+
+        self._check_query(query)
+        self._set_evidences(evidence)
+        self._reset_counters()
+
+        states_without_evidence = self._get_states_without_evidence(evidence)
+        if not states_without_evidence:
+            raise ValueError('Every node was given evidence, cant generate any data')
+
+        # setting random initial values
+        for node in states_without_evidence:
+            node.set_initial_value()
+
+        for i in range(n):
+            node = random_choice(states_without_evidence)
+            markov_blanket = node.get_markov_blanket()
+
+            node.set_non_static()
+            value = node.sample_given_markov_blanket(markov_blanket)
+            node.set_static_value(value)
+
+        results = {}
+        for node in query:
+            results[node.name] = node.get_prob()
+
+        return results
