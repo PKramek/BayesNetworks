@@ -117,12 +117,15 @@ class Node:
 
         if isinstance(self.distribution, ConditionalDistribution):
             # Check if parents are in the same order as dependencies in distribution table
-            for possible_values in self.distribution.get_dependencies_possible_values():
-                for i, value in enumerate(possible_values):
-                    if not self.parents[self.parents_order[i]].is_value_possible():
+            for i, possible_values in enumerate(self.distribution.get_dependencies_possible_values()):
+                for value in possible_values:
+                    if not self.parents[self.parents_order[i]].is_value_possible(value):
                         raise RuntimeError('Parents for node: {} are out of order with given distribution'.format(
                             self.name
                         ))
+        if isinstance(self.distribution, ConditionalDistribution):
+            # Check if values from parents are in conditional probability table
+            pass
 
     def reset_counters(self):
         """
@@ -364,6 +367,8 @@ class BayesNetwork:
         :rtype: Dict[str,Dict[str, float]]
         """
         assert self.nodes, 'No nodes added to network'
+        if not query:
+            return {}
 
         for node_name in query:
             if node_name in evidence.keys():

@@ -94,6 +94,7 @@ class DiscreteDistribution(Distribution):
         :return: True if value is in distribution or False otherwise
         :rtype: bool
         """
+        assert self._is_preprocessed, 'Distribution first must be preprocessed'
         return value in self._values
 
     def get_random_value(self):
@@ -103,7 +104,7 @@ class DiscreteDistribution(Distribution):
         :return: Random possible in distribution value drawn with uniform distribution
         :rtype: str
         """
-        assert self._values, 'To get random value, distribution first must be preprocessed'
+        assert self._values, 'Distribution first must be preprocessed'
         return random_choice(self._values)
 
 
@@ -132,7 +133,7 @@ class ConditionalDistribution(Distribution):
         """
         assert isinstance(distribution, list) and all(isinstance(x, list) for x in distribution)
         for x in distribution:
-            assert all(isinstance(y, str) for y in x[:-1]) and isinstance(x[-1], float)
+            assert all(isinstance(y, str) for y in x[:-1]) and (isinstance(x[-1], float) or (isinstance(x[-1], int)))
         self.distribution = distribution
         self.dist_len = len(self.distribution)
 
@@ -187,7 +188,7 @@ class ConditionalDistribution(Distribution):
             self.conditional_distribution_lookup[evidence][0], num_of_samples,
             p=self.conditional_distribution_lookup[evidence][1])[:][0]
         if num_of_samples == 1:
-            return samples[0]
+            return samples
         return samples
 
     def is_value_possible(self, value: str):
