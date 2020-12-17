@@ -61,5 +61,5 @@ network.add_edge(node_2, node_5)
 network.add_edge(node_4, node_5)
 network.preprocess()
 
-results = network.gibbs({node_3.name: 'E', node_4.name: 'X'}, [node_1, node_2, node_5], 10000)
+results = network.gibbs({node_3.name: 'E', node_4.name: 'X'}, [node_1.name, node_2.name, node_5.name], 10000)
 pprint(results)

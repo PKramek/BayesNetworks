@@ -315,8 +315,8 @@ class BayesNetwork:
         :rtype: None
         """
         # TODO change nodes to nodes names
-        for node in query:
-            assert node in self.nodes.values(), 'Node {} not known'.format(node.name)
+        for node_name in query:
+            assert node_name in self.nodes.keys(), 'Node {} not known'.format(node_name)
 
     def _reset_counters(self):
         """
@@ -361,9 +361,9 @@ class BayesNetwork:
         """
         assert self.nodes, 'No nodes added to network'
 
-        for node in query:
-            if node.name in evidence.keys():
-                raise ValueError('Node {} is in query as well as in evidence'.format(node.name))
+        for node_name in query:
+            if node_name in evidence.keys():
+                raise ValueError('Node {} is in query as well as in evidence'.format(node_name))
 
         self._check_query(query)
         self._set_evidences(evidence)
@@ -387,8 +387,8 @@ class BayesNetwork:
             node.set_static_value(value)
 
         results = {}
-        for node in query:
-            results[node.name] = node.get_prob()
+        for node_name in query:
+            results[node_name] = self.nodes[node_name].get_prob()
 
         return results
 
