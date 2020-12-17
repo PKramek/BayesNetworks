@@ -1,16 +1,27 @@
 from abc import ABC, abstractmethod
 from random import choice as random_choice
-from typing import List, Dict, Tuple, Generator, Set
+from typing import List, Dict, Tuple, Generator, Set, Union
 
 import numpy as np
 
 
-# TODO refactor this file
-
 class Distribution(ABC):
+    """
+    Abstract base class for distributions
+    """
 
     @abstractmethod
     def preprocess(self, *args, **kwargs):
+        """
+        This method must be called before any other method. It performs necessary internal preprocessing.
+
+        :param args:
+        :type args:
+        :param kwargs:
+        :type kwargs:
+        :return: None
+        :rtype: None
+        """
         pass
 
     @abstractmethod
@@ -27,9 +38,18 @@ class Distribution(ABC):
 
 
 class DiscreteDistribution(Distribution):
+    """
+    This class represents discrete distribution.
+    """
 
     def __init__(self, distribution: Dict):
-        # TODO change to exceptions
+        """
+        Constructor for DiscreteDistribution class
+
+        :param distribution: A dictionary with defined possible variables as keys,
+         and probabilities as values e.g. {'A': 0.1, 'B': 0.9}
+        :type distribution: Dict[str, float]
+        """
         assert isinstance(distribution, dict) and all(
             isinstance(key, str) and isinstance(value, float) for key, value in distribution.items()) and sum(
             [x for x in distribution.values()]) == 1
@@ -38,7 +58,13 @@ class DiscreteDistribution(Distribution):
         self._weights = None
         self._is_preprocessed = False
 
-    def preprocess(self):
+    def preprocess(self) -> None:
+        """
+        This method must be called before any other method. It performs necessary internal preprocessing.
+
+        :return: None
+        :rtype: None
+        """
         assert self.distribution is not None
 
         self._values = list(self.distribution.keys())
@@ -46,24 +72,64 @@ class DiscreteDistribution(Distribution):
 
         self._is_preprocessed = True
 
-    def sample(self, num_of_samples: int = 1):
+    def sample(self, num_of_samples: int = 1) -> Union[str, List[str]]:
+        """
+        Return sample(s) from distribution
+        :param num_of_samples: Number of samples to be returned
+        :type num_of_samples: int
+        :return: A single sample or a list of samples
+        :rtype: Union[str, List[str]]
+        """
         assert self._is_preprocessed, 'Distribution first must be preprocessed'
         samples = np.random.choice(self._values, num_of_samples, p=self._weights)
         if num_of_samples == 1:
             return samples[0]
-        return samples
+        return list(samples)
 
-    def is_value_possible(self, value):
+    def is_value_possible(self, value: str) -> bool:
+        """
+        Returns if value is possible in distribution
+        :param value: Value to check
+        :type value: str
+        :return: True if value is in distribution or False otherwise
+        :rtype: bool
+        """
         return value in self._values
 
     def get_random_value(self):
+        """
+        Return a random possible value, but with uniform distribution
+
+        :return: Random possible in distribution value drawn with uniform distribution
+        :rtype: str
+        """
         assert self._values, 'To get random value, distribution first must be preprocessed'
         return random_choice(self._values)
 
 
 class ConditionalDistribution(Distribution):
+    """
+    This class represents conditional distribution.
+    """
 
-    def __init__(self, distribution: List[List]):
+    def __init__(self, distribution: List[List[Union[str, float]]]):
+        """
+        Constructor for DiscreteDistribution class
+
+        :param distribution: List of lists describing conditional probabilities. Last value in list is a probability,
+        and second last is a value in that distribution. Values at positions 0:-2 are evidences.
+
+        Example:
+        [
+            ['A', 'X', 0.5],
+            ['A', 'Y', 0.5],
+            ['B', 'X', 0.3],
+            ['B', 'Y', 0.7]
+        ]
+
+        Possible values in this example distribution are X and Y
+        :type distribution: List[List[Union[str,float]]]
+        """
         assert isinstance(distribution, list) and all(isinstance(x, list) for x in distribution)
         for x in distribution:
             assert all(isinstance(y, str) for y in x[:-1]) and isinstance(x[-1], float)
@@ -77,9 +143,15 @@ class ConditionalDistribution(Distribution):
         self._values = None
 
     def preprocess(self):
+        """
+        This method must be called before any other method. It performs necessary internal preprocessing.
+
+        :return: None
+        :rtype: None
+        """
         assert self.distribution is not None
 
-        def get_possible_values_and_weight_for_evidence(distribution, evidence) -> Tuple:
+        def get_possible_values_and_weight_for_evidence(distribution, evidence) -> Tuple[List[str], np.array]:
             values = []
             weights = []
             for x in distribution:
@@ -93,13 +165,21 @@ class ConditionalDistribution(Distribution):
 
         self._values = list(set([x[-2] for x in self.distribution]))
         possible_evidences = list(set([tuple(x[:self.num_of_dependencies]) for x in self.distribution]))
+        # create a lookup dictionary for probabilities given evidence
         for possible_evidence in possible_evidences:
             self.conditional_distribution_lookup[possible_evidence] = get_possible_values_and_weight_for_evidence(
                 self.distribution, possible_evidence)
 
         self._is_preprocessed = True
 
-    def sample(self, evidence: List[str], num_of_samples: int = 1):
+    def sample(self, evidence: List[str], num_of_samples: int = 1) -> Union[str, List[str]]:
+        """
+        Return sample(s) from distribution given evidence
+        :param num_of_samples: Number of samples to be returned
+        :type num_of_samples: int
+        :return: A single sample or a list of samples
+        :rtype: Union[str, List[str]]
+        """
         assert self._is_preprocessed, 'Distribution first must be preprocessed'
 
         evidence = tuple(evidence)
@@ -110,14 +190,34 @@ class ConditionalDistribution(Distribution):
             return samples[0]
         return samples
 
-    def is_value_possible(self, value):
+    def is_value_possible(self, value: str):
+        """
+        Returns if value is possible in distribution
+
+        :param value: Value to check
+        :type value: str
+        :return: True if value is in distribution or False otherwise
+        :rtype: bool
+        """
         return value in self._values
 
     def get_random_value(self):
+        """
+        Return a random possible value, but with uniform distribution
+
+        :return: Random possible in distribution value drawn with uniform distribution
+        :rtype: str
+        """
         assert self._values, 'To get random value, distribution first must be preprocessed'
         return random_choice(self._values)
 
-    def get_dependencies_possible_values(self) -> Generator[Set[str], None, None]:
+    def get_dependencies_possible_values(self) -> Generator[Set[str]]:
+        """
+        Generator that returns possible possible values for i-th dependency
+
+        :return: Generator for possible values in i-th column in conditional probability table (except last two columns)
+        :rtype: Generator[Set[str]]
+        """
         for i in range(self.num_of_dependencies - 2):
             ith_column = [x[i] for x in self.distribution]
             possible_values = set(ith_column)

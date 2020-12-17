@@ -5,7 +5,7 @@ from BayesNetwork.distributions import Distribution, ConditionalDistribution
 
 
 class Node:
-    def __init__(self, distribution, name: str):
+    def __init__(self, distribution: 'Distribution', name: str):
         assert isinstance(name, str), 'Name is not a string'
         assert isinstance(distribution, Distribution), 'Distribution must be of class Distribution'
         self.children = {}
@@ -15,14 +15,14 @@ class Node:
 
         self.markov_blanket = {}
         self.distribution = distribution
-        self.name = name  # critical !!
+        self.name = name
 
         self.is_dependent = isinstance(distribution, ConditionalDistribution)
         self.counter = {}
         self.evidence = None
         self.static_value = None
 
-    def add_parent(self, parent):
+    def add_parent(self, parent: 'Node'):
         assert isinstance(parent, Node), 'Given parent is not a Node'
         assert parent is not self, 'Cant add self as a parent'
         assert isinstance(self.distribution, ConditionalDistribution), 'Cant add parents to independent distribution'
@@ -36,7 +36,7 @@ class Node:
         else:
             raise ValueError('Parent already know')
 
-    def add_child(self, child):
+    def add_child(self, child: 'Node'):
         assert isinstance(child, Node)
         assert child is not self, 'Cant add self as a child'
         if child.name in self.parents.keys():
@@ -64,6 +64,7 @@ class Node:
         self.distribution.preprocess()
 
         if isinstance(self.distribution, ConditionalDistribution):
+            # Check if parents are in the same order as dependencies in distribution table
             for possible_values in self.distribution.get_dependencies_possible_values():
                 for i, value in enumerate(possible_values):
                     if not self.parents[self.parents_order[i]].is_value_possible():
@@ -74,7 +75,7 @@ class Node:
     def reset_counters(self):
         self.counter = {}
 
-    def sample(self, observations=None):
+    def sample(self, observations: List[str] = None):
         if self.evidence is None and self.static_value is None:
             if self.is_dependent:
                 assert observations is not None, 'Observations must be given if node is dependent'
@@ -90,26 +91,26 @@ class Node:
 
         return sample
 
-    def sample_given_markov_blanket(self, markov_blanket: dict):
+    def sample_given_markov_blanket(self, markov_blanket: Dict['str', 'Node']):
         observations = []
         for name in self.parents_order:
             observations.append(markov_blanket[name].sample())
 
         return self.sample(observations)
 
-    def set_evidence(self, value):
+    def set_evidence(self, value: str):
         assert self.distribution.is_value_possible(value), 'Value not found in distribution'
         self.evidence = value
 
-    def set_static_value(self, value):
+    def set_static_value(self, value: str):
         assert self.distribution.is_value_possible(value), 'Value not found in distribution'
         self.static_value = value
 
-    def set_initial_value(self):
-        self.static_value = self.distribution.get_random_value()
-
     def set_non_static(self):
         self.static_value = None
+
+    def set_random_initial_value(self):
+        self.static_value = self.distribution.get_random_value()
 
     def get_prob(self):
         if self.counter:
@@ -118,7 +119,7 @@ class Node:
         else:
             return None
 
-    def is_value_possible(self, value):
+    def is_value_possible(self, value: str):
         return self.distribution.is_value_possible(value)
 
 
@@ -143,7 +144,6 @@ class BayesNetwork:
         if child.name not in self.states.keys():
             raise ValueError('Not known child node {}, it first must be added to list of stated'.format(child))
 
-        # TODO check if the order is right
         parent.add_child(child)
         child.add_parent(parent)
 
@@ -152,7 +152,7 @@ class BayesNetwork:
         for node in self.states.values():
             node.preprocess()
 
-    def _set_evidences(self, evidence: Dict):
+    def _set_evidences(self, evidence: Dict[str, str]):
         for name, state in evidence.items():
             self.states[name].set_evidence(state)
 
@@ -165,7 +165,7 @@ class BayesNetwork:
         for state in self.states.values():
             state.reset_counters()
 
-    def _get_states_without_evidence(self, evidence: dict):
+    def _get_states_without_evidence(self, evidence: Dict[str, str]):
         states_without_evidence = []
         for state in self.states.values():
             if state.name not in evidence.keys():
@@ -173,8 +173,12 @@ class BayesNetwork:
 
         return states_without_evidence
 
-    def gibbs(self, evidence: dict, query: List[Node], n: int):
+    def gibbs(self, evidence: Dict[str, str], query: List[Node], n: int):
         assert self.states, 'No nodes added to network'
+
+        for node in query:
+            if node.name in evidence.keys():
+                raise ValueError('Node {} is in query as well as in evidence'.format(node.name))
 
         self._check_query(query)
         self._set_evidences(evidence)
@@ -186,7 +190,7 @@ class BayesNetwork:
 
         # setting random initial values
         for node in states_without_evidence:
-            node.set_initial_value()
+            node.set_random_initial_value()
 
         for i in range(n):
             node = random_choice(states_without_evidence)

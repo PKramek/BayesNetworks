@@ -8,6 +8,17 @@ second_dist = DiscreteDistribution({'C': 0.2, 'D': 0.8})
 third_dist = DiscreteDistribution({'X': 0.2, 'Y': 0.8})
 fourth_dist = DiscreteDistribution({'True': 0.1, 'False': 0.9})
 
+first_dist.preprocess()
+first_dist.sample(10)
+
+test_conditional = ConditionalDistribution([
+    ['A', 'X', 0.5],
+    ['A', 'Y', 0.5],
+    ['B', 'X', 0.3],
+    ['B', 'Y', 0.7]
+])
+test_conditional.preprocess()
+
 conditional_dist = ConditionalDistribution([
     ['A', 'C', 'E', 0.5],
     ['A', 'C', 'F', 0.5],
@@ -50,6 +61,5 @@ network.add_edge(node_2, node_5)
 network.add_edge(node_4, node_5)
 network.preprocess()
 
-# I think its pretty good
-results = network.gibbs({node_3.name: 'E', node_4.name: 'X'}, [node_1, node_2, node_3, node_4, node_5], 10000)
+results = network.gibbs({node_3.name: 'E', node_4.name: 'X'}, [node_1, node_2, node_5], 10000)
 pprint(results)
