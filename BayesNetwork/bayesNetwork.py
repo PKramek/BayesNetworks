@@ -156,12 +156,12 @@ class Node:
 
         return sample
 
-    def sample_given_markov_blanket(self, markov_blanket: Dict['str', 'Node']):
+    def sample_given_markov_blanket(self, markov_blanket: Dict[str, 'Node']):
         """
         Returns a sample given markov blanket.
 
         :param markov_blanket: Nodes markov blanket
-        :type markov_blanket: Dict['str', 'Node']
+        :type markov_blanket: Dict[str, 'Node']
         :return: Sample from nodes distribution
         :rtype: str
         """
