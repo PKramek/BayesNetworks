@@ -211,7 +211,7 @@ class ConditionalDistribution(Distribution):
         assert self._values, 'To get random value, distribution first must be preprocessed'
         return random_choice(self._values)
 
-    def get_dependencies_possible_values(self) -> Generator[Set[str]]:
+    def get_dependencies_possible_values(self) -> Generator[Set[str], None, None]:
         """
         Generator that returns possible possible values for i-th dependency
 

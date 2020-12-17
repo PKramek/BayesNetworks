@@ -1,11 +1,23 @@
 from random import choice as random_choice
-from typing import List, Dict
+from typing import List, Dict, Union
 
 from BayesNetwork.distributions import Distribution, ConditionalDistribution
 
 
 class Node:
+    """
+    Class representing node in Bayes network
+    """
+
     def __init__(self, distribution: 'Distribution', name: str):
+        """
+        Constructor for Node class
+
+        :param distribution: Distribution class object
+        :type distribution: 'Distribution'
+        :param name: Name of the node
+        :type name: str
+        """
         assert isinstance(name, str), 'Name is not a string'
         assert isinstance(distribution, Distribution), 'Distribution must be of class Distribution'
         self.children = {}
@@ -22,7 +34,15 @@ class Node:
         self.evidence = None
         self.static_value = None
 
-    def add_parent(self, parent: 'Node'):
+    def add_parent(self, parent: 'Node') -> None:
+        """
+        Add parent to node
+
+        :param parent: Parent Node
+        :type parent: Node
+        :return: None
+        :rtype: None
+        """
         assert isinstance(parent, Node), 'Given parent is not a Node'
         assert parent is not self, 'Cant add self as a parent'
         assert isinstance(self.distribution, ConditionalDistribution), 'Cant add parents to independent distribution'
@@ -37,6 +57,14 @@ class Node:
             raise ValueError('Parent already know')
 
     def add_child(self, child: 'Node'):
+        """
+        Add child to node
+
+        :param child: Child Node
+        :type child: Node
+        :return: None
+        :rtype: None
+        """
         assert isinstance(child, Node)
         assert child is not self, 'Cant add self as a child'
         if child.name in self.parents.keys():
@@ -45,16 +73,40 @@ class Node:
             self.children[child.name] = child
             self.markov_blanket[child.name] = child
 
-    def get_markov_blanket(self) -> Dict:
+    def get_markov_blanket(self) -> Dict[str, 'Node']:
+        """
+        Return Markov Blanket for Node
+
+        :return: Markov Blanket for Node
+        :rtype: Dict[str, 'Node']
+        """
         return self.markov_blanket
 
-    def get_children(self) -> Dict:
+    def get_children(self) -> Dict[str, 'Node']:
+        """
+        Return children of Node
+
+        :return: Node`s children
+        :rtype: Dict[str, 'Node']
+        """
         return self.children
 
-    def get_parents(self) -> Dict:
+    def get_parents(self) -> Dict[str, 'Node']:
+        """
+        Return parents of Node
+
+        :return: Node`s parents
+        :rtype: Dict[str, 'Node']
+        """
         return self.parents
 
     def preprocess(self):
+        """
+        This method must be called before any other method. It performs necessary internal preprocessing.
+
+        :return: None
+        :rtype: None
+        """
         # Adding parents children to markov blanket (excluding node itself)
         for child in self.children.values():
             for name, node in child.get_parents().items():
@@ -73,9 +125,22 @@ class Node:
                         ))
 
     def reset_counters(self):
+        """
+        Reset occurrence counters
+        :return:
+        :rtype:
+        """
         self.counter = {}
 
-    def sample(self, observations: List[str] = None):
+    def sample(self, observations: List[str] = None) -> str:
+        """
+        Sample from Node distribution. If either evidence is set or value is set to static value is not drawn
+        from distribution but either evidence or static value is returned
+        :param observations: List of observations
+        :type observations: List[str]
+        :return: Sample from node distribution
+        :rtype: str
+        """
         if self.evidence is None and self.static_value is None:
             if self.is_dependent:
                 assert observations is not None, 'Observations must be given if node is dependent'
@@ -92,27 +157,67 @@ class Node:
         return sample
 
     def sample_given_markov_blanket(self, markov_blanket: Dict['str', 'Node']):
+        """
+        Returns a sample given markov blanket.
+
+        :param markov_blanket: Nodes markov blanket
+        :type markov_blanket: Dict['str', 'Node']
+        :return: Sample from nodes distribution
+        :rtype: str
+        """
         observations = []
         for name in self.parents_order:
             observations.append(markov_blanket[name].sample())
 
         return self.sample(observations)
 
-    def set_evidence(self, value: str):
+    def set_evidence(self, value: str) -> None:
+        """
+        Set evidence in node. When evidence is set, sample will return its value
+        :param value: Value to be set as evidence
+        :type value: str
+        :return: None
+        :rtype: None
+        """
         assert self.distribution.is_value_possible(value), 'Value not found in distribution'
         self.evidence = value
 
-    def set_static_value(self, value: str):
+    def set_static_value(self, value: str) -> None:
+        """
+        Set static value in node. When static value is set, sample will return its value
+        :param value: Value to be set as evidence
+        :type value: str
+        :return: None
+        :rtype: None
+        """
         assert self.distribution.is_value_possible(value), 'Value not found in distribution'
         self.static_value = value
 
     def set_non_static(self):
+        """
+        Sets node as non static
+
+        :return: None
+        :rtype: Node
+        """
         self.static_value = None
 
     def set_random_initial_value(self):
+        """
+        Sets nodes static value as random sample drawn with uniform distribution from possible values in distribution.
+
+        :return: None
+        :rtype: None
+        """
         self.static_value = self.distribution.get_random_value()
 
-    def get_prob(self):
+    def get_prob(self) -> Union[None, Dict[str, float]]:
+        """
+        Return probabilities of values occurring. Probabilities are calculated based on occurrence counters
+
+        :return: Dictionary, where each key is possible value in distribution and key is probability of it occuring
+        :rtype: Union(None, Dict[str, float])
+        """
         if self.counter:
             total_occurrences = sum(self.counter.values())
             return {key: value / float(total_occurrences) for key, value in self.counter.items()}
@@ -120,61 +225,141 @@ class Node:
             return None
 
     def is_value_possible(self, value: str):
+        """
+        Checks if given value is possible in Nodes distribution
+
+        :param value: Value to check
+        :type value: str
+        :return: True if value is possible in distribution and False otherwise
+        :rtype: bool
+        """
         return self.distribution.is_value_possible(value)
 
 
 class BayesNetwork:
+    """
+    Class representing Bayes Netowrk
+    """
+
     def __init__(self):
-        self.states = {}
+        self.nodes = {}
 
-    def add_states(self, list_of_states: List['Node']):
-        assert isinstance(list_of_states, List) and all(isinstance(x, Node) for x in list_of_states)
-        for state in list_of_states:
-            if state.name not in self.states.keys():
-                self.states[state.name] = state
+    def add_nodes(self, list_of_nodes: List['Node']) -> None:
+        """
+        Adds nodes to network.
+
+        :param list_of_nodes: List of nodes
+        :type list_of_nodes: List['Node']
+        :return: None
+        :rtype: None
+        """
+        assert isinstance(list_of_nodes, List) and all(isinstance(x, Node) for x in list_of_nodes)
+        for state in list_of_nodes:
+            if state.name not in self.nodes.keys():
+                self.nodes[state.name] = state
             else:
-                raise ValueError('States names must be unique')
+                raise ValueError('Nodes names must be unique')
 
-    def add_edge(self, parent: 'Node', child: 'Node'):
+    def add_edge(self, parent: 'Node', child: 'Node') -> None:
+        """
+        Adds edge between given two nodes if they are already in network.
+
+        :param parent: Parent node
+        :type parent: 'Node'
+        :param child: Child node
+        :type child: 'Node'
+        :return: None
+        :rtype: None
+        """
         assert isinstance(parent, Node) and isinstance(child, Node)
 
-        if parent.name not in self.states.keys():
+        if parent.name not in self.nodes.keys():
             raise ValueError('Not known parent node {}, it first must be added to list of stated'.format(parent))
 
-        if child.name not in self.states.keys():
+        if child.name not in self.nodes.keys():
             raise ValueError('Not known child node {}, it first must be added to list of stated'.format(child))
 
         parent.add_child(child)
         child.add_parent(parent)
 
     def preprocess(self):
-        assert self.states, 'No nodes in graph'
-        for node in self.states.values():
+        """
+        This method must be called before performing any calculations. It performs necessary internal preprocessing.
+
+        :return: None
+        :rtype: None
+        """
+        assert self.nodes, 'No nodes in graph'
+        for node in self.nodes.values():
             node.preprocess()
 
     def _set_evidences(self, evidence: Dict[str, str]):
+        """
+        Set evidences.
+
+        :param evidence: Evidence in form of dictionary, where keys are nodes names and values are values to be set
+        in those nodes.
+        :type evidence: Dict[str, str]
+        :return:
+        :rtype:
+        """
         for name, state in evidence.items():
-            self.states[name].set_evidence(state)
+            self.nodes[name].set_evidence(state)
 
     def _check_query(self, query):
+        """
+        Checks if Nodes in query are in network
+        :param query: List of nodes names
+        :type query: List[str]
+        :return: None
+        :rtype: None
+        """
+        # TODO change nodes to nodes names
         for node in query:
-            assert node in self.states.values(), 'Node {} not known'.format(node.name)
+            assert node in self.nodes.values(), 'Node {} not known'.format(node.name)
 
     def _reset_counters(self):
-        assert self.states
-        for state in self.states.values():
+        """
+        Resets occurrence counters in each node in network
+        :return:
+        :rtype:
+        """
+        assert self.nodes
+        for state in self.nodes.values():
             state.reset_counters()
 
-    def _get_states_without_evidence(self, evidence: Dict[str, str]):
-        states_without_evidence = []
-        for state in self.states.values():
+    def _get_nodes_without_evidence(self, evidence: Dict[str, str]):
+        """
+        Returns all nodes without given evidence
+
+        :param evidence:  Evidence in form of dictionary, where keys are nodes names and values are values to be set
+        in those nodes.
+        :type evidence:  Dict[str, str]
+        :return: List of nodes without evidences set
+        :rtype: List['Node']
+        """
+        nodes_without_evidence = []
+        for state in self.nodes.values():
             if state.name not in evidence.keys():
-                states_without_evidence.append(state)
+                nodes_without_evidence.append(state)
 
-        return states_without_evidence
+        return nodes_without_evidence
 
-    def gibbs(self, evidence: Dict[str, str], query: List[Node], n: int):
-        assert self.states, 'No nodes added to network'
+    def gibbs(self, evidence: Dict[str, str], query: List[str], n: int) -> Dict[str, Dict[str, float]]:
+        """
+        Performc MCMC Gibbs sampling
+
+        :param evidence:  Evidence in form of dictionary, where keys are nodes names and values are values to be set
+        in those nodes.
+        :type evidence:Dict[str, str]
+        :param query: Names of nodes for which probabilities should be approximated
+        :type query: List[str]
+        :param n: Number of loop iterations used in Gibbs sampling
+        :type n: int
+        :return: Dictionary where keys are nodes names and values are dictionaries with probabilities descriptions.
+        :rtype: Dict[str,Dict[str, float]]
+        """
+        assert self.nodes, 'No nodes added to network'
 
         for node in query:
             if node.name in evidence.keys():
@@ -184,16 +369,17 @@ class BayesNetwork:
         self._set_evidences(evidence)
         self._reset_counters()
 
-        states_without_evidence = self._get_states_without_evidence(evidence)
-        if not states_without_evidence:
+        nodes_without_evidence = self._get_nodes_without_evidence(evidence)
+        if not nodes_without_evidence:
             raise ValueError('Every node was given evidence, cant generate any data')
 
         # setting random initial values
-        for node in states_without_evidence:
+        for node in nodes_without_evidence:
             node.set_random_initial_value()
 
+        # Monte Carlo simulation
         for i in range(n):
-            node = random_choice(states_without_evidence)
+            node = random_choice(nodes_without_evidence)
             markov_blanket = node.get_markov_blanket()
 
             node.set_non_static()
@@ -205,3 +391,6 @@ class BayesNetwork:
             results[node.name] = node.get_prob()
 
         return results
+
+
+1

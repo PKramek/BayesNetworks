@@ -53,7 +53,7 @@ not_know_node = Node(fourth_dist, name='temp')
 
 network = BayesNetwork()
 
-network.add_states([node_1, node_2, node_3, node_4, node_5])
+network.add_nodes([node_1, node_2, node_3, node_4, node_5])
 
 network.add_edge(node_1, node_3)
 network.add_edge(node_2, node_3)
