@@ -174,6 +174,7 @@ class Node:
     def set_evidence(self, value: str) -> None:
         """
         Set evidence in node. When evidence is set, sample will return its value
+
         :param value: Value to be set as evidence
         :type value: str
         :return: None
@@ -185,6 +186,7 @@ class Node:
     def set_static_value(self, value: str) -> None:
         """
         Set static value in node. When static value is set, sample will return its value
+
         :param value: Value to be set as evidence
         :type value: str
         :return: None
@@ -309,6 +311,7 @@ class BayesNetwork:
     def _check_query(self, query):
         """
         Checks if Nodes in query are in network
+
         :param query: List of nodes names
         :type query: List[str]
         :return: None
@@ -321,6 +324,7 @@ class BayesNetwork:
     def _reset_counters(self):
         """
         Resets occurrence counters in each node in network
+
         :return:
         :rtype:
         """
