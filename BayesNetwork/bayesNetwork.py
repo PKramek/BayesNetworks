@@ -402,4 +402,3 @@ class BayesNetwork:
         return results
 
 
-1
